@@ -1,6 +1,6 @@
 package co.za.projectolympus.recon;
 
-import com.amazonaws.services.kinesisanalytics.runtime.KinesisAnalyticsRuntime;
+//import com.amazonaws.services.kinesisanalytics.runtime.KinesisAnalyticsRuntime;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
@@ -38,6 +38,8 @@ public class StreamingJob {
     private static final String SIMPLE_EVENTS_STREAM = "simple-events-sync";
     private static final String DEFAULT_AWS_REGION = "af-south-1";
     private static final String AWS_ACCOUNT_ID = "000000000";
+    private static final String AWS_ASSUME_ROLE_ARN = "";
+    private static final String AWS_S3_KEY_ARN = "";
     private static final String DEFAULT_ICEBERG_S3_BUCKET = "data-raw/decodable/";
     private static final String DEFAULT_GLUE_DB = "default";
     private static final String DEFAULT_ICEBERG_TABLE_NAME = "simple_events_iceberg";
@@ -46,24 +48,24 @@ public class StreamingJob {
     private static final String DEFAULT_ICEBERG_OPERATION = "append";
     private static final String DEFAULT_ICEBERG_UPSERT_FIELDS = "message_key,topic_name";
 
-    /**
-     * Get configuration properties from Amazon Managed Service for Apache Flink runtime properties
-     * GroupID "FlinkApplicationProperties", or from command line parameters when running locally
-     */
-    private static ParameterTool loadApplicationParameters(String[] args, StreamExecutionEnvironment env) throws IOException {
-        if (env instanceof LocalStreamEnvironment) {
-            return ParameterTool.fromArgs(args);
-        } else {
-            Map<String, Properties> applicationProperties = KinesisAnalyticsRuntime.getApplicationProperties();
-            Properties flinkProperties = applicationProperties.get("FlinkApplicationProperties");
-            if (flinkProperties == null) {
-                throw new RuntimeException("Unable to load FlinkApplicationProperties properties from runtime properties");
-            }
-            Map<String, String> map = new HashMap<>(flinkProperties.size());
-            flinkProperties.forEach((k, v) -> map.put((String) k, (String) v));
-            return ParameterTool.fromMap(map);
-        }
-    }
+//    /**
+//     * Get configuration properties from Amazon Managed Service for Apache Flink runtime properties
+//     * GroupID "FlinkApplicationProperties", or from command line parameters when running locally
+//     */
+//    private static ParameterTool loadApplicationParameters(String[] args, StreamExecutionEnvironment env) throws IOException {
+//        if (env instanceof LocalStreamEnvironment) {
+//            return ParameterTool.fromArgs(args);
+//        } else {
+//            Map<String, Properties> applicationProperties = KinesisAnalyticsRuntime.getApplicationProperties();
+//            Properties flinkProperties = applicationProperties.get("FlinkApplicationProperties");
+//            if (flinkProperties == null) {
+//                throw new RuntimeException("Unable to load FlinkApplicationProperties properties from runtime properties");
+//            }
+//            Map<String, String> map = new HashMap<>(flinkProperties.size());
+//            flinkProperties.forEach((k, v) -> map.put((String) k, (String) v));
+//            return ParameterTool.fromMap(map);
+//        }
+//    }
 
     // Used to generate the PartitionSpec, if when creating table, you want it to be partitioned.
     // If you are doing Upserts in your Iceberg Table, your Equality Fields must be the same as the fields used for Partitioning.
@@ -111,6 +113,10 @@ public class StreamingJob {
         catalogProperties.put("impl", "org.apache.iceberg.aws.glue.GlueCatalog");
         catalogProperties.put("s3.region", DEFAULT_AWS_REGION);
         catalogProperties.put("s3.endpoint",s3Endpoint);
+        catalogProperties.put("glue.id", applicationProperties.get("aws.region", DEFAULT_AWS_REGION));
+        catalogProperties.put("s3.sse.type", "kms");
+        catalogProperties.put("s3.sse.key", applicationProperties.get("aws.s3.sse_key_arn", AWS_S3_KEY_ARN));
+        catalogProperties.put("client.assume-role.arn", applicationProperties.get("aws.assume_role_arn", AWS_ASSUME_ROLE_ARN));
         //Loading Glue Data Catalog
         CatalogLoader glueCatalogLoader = CatalogLoader.custom(
                 "glue",
